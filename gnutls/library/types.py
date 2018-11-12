@@ -93,6 +93,12 @@ class gnutls_datum_t(Structure):
     _fields_ = [('data', POINTER(c_ubyte)),
                 ('size', c_uint)]
 
+    def get_string_and_free(self):
+        res = string_at(self.data, self.size)
+        #gnutls_free(self.data)
+        self.data = None
+        return res
+
 class gnutls_params_st(Structure):
     _fields_ = [('type', gnutls_params_type_t),
                 ('params', params),
@@ -147,6 +153,14 @@ gnutls_openpgp_crt_t = POINTER(gnutls_openpgp_crt_int)
 class gnutls_openpgp_privkey_int(Structure):
     _fields_ = []
 gnutls_openpgp_privkey_t = POINTER(gnutls_openpgp_privkey_int)
+
+class gnutls_privkey_int(Structure):
+    _fields_ = []
+gnutls_privkey_t = POINTER(gnutls_privkey_int)
+
+class gnutls_pubkey_int(Structure):
+    _fields_ = []
+gnutls_pubkey_t = POINTER(gnutls_pubkey_int)
 
 class cert(Union):
     _fields_ = [('x509', POINTER(gnutls_x509_crt_t)),

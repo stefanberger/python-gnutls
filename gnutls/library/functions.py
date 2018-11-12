@@ -559,6 +559,94 @@ gnutls_priority_set_direct = libgnutls.gnutls_priority_set_direct
 gnutls_priority_set_direct.argtypes = [gnutls_session_t, c_char_p, POINTER(c_char_p)]
 gnutls_priority_set_direct.restype = c_int
 
+gnutls_privkey_decrypt_data = libgnutls.gnutls_privkey_decrypt_data
+gnutls_privkey_decrypt_data.argtypes = [gnutls_privkey_t, c_int, POINTER(gnutls_datum_t), POINTER(gnutls_datum_t)]
+gnutls_privkey_decrypt_data.restype = c_int
+
+gnutls_privkey_deinit = libgnutls.gnutls_privkey_deinit
+gnutls_privkey_deinit.argtypes = [gnutls_privkey_t]
+gnutls_privkey_deinit.restype = None
+
+# no raw2 on cygwin
+gnutls_privkey_export_rsa_raw = libgnutls.gnutls_privkey_export_rsa_raw
+gnutls_privkey_export_rsa_raw.argtypes = [gnutls_privkey_t, POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t)]
+gnutls_privkey_export_rsa_raw.restype = c_int
+
+gnutls_privkey_generate = libgnutls.gnutls_privkey_generate
+gnutls_privkey_generate.argtypes = [gnutls_privkey_t, gnutls_pk_algorithm_t, c_uint, c_uint]
+gnutls_privkey_generate.restype = c_int
+
+gnutls_privkey_get_pk_algorithm = libgnutls.gnutls_privkey_get_pk_algorithm
+gnutls_privkey_get_pk_algorithm.argtypes = [gnutls_privkey_t, POINTER(c_uint)]
+gnutls_privkey_get_pk_algorithm.restype = c_int
+
+gnutls_privkey_import_tpm_url = libgnutls.gnutls_privkey_import_tpm_url
+gnutls_privkey_import_tpm_url.argtypes = [gnutls_privkey_t, c_char_p, c_char_p, c_char_p, c_uint]
+gnutls_privkey_import_tpm_url.restype = c_int
+
+gnutls_privkey_import_url = libgnutls.gnutls_privkey_import_url
+gnutls_privkey_import_url.argtypes = [gnutls_privkey_t, c_char_p, c_uint]
+gnutls_privkey_import_url.restype = c_int
+
+gnutls_privkey_init = libgnutls.gnutls_privkey_init
+gnutls_privkey_init.argtypes = [POINTER(gnutls_privkey_t)]
+gnutls_privkey_init.restype = c_int
+
+gnutls_privkey_sign_data = libgnutls.gnutls_privkey_sign_data
+gnutls_privkey_sign_data.argtypes = [gnutls_privkey_t, gnutls_digest_algorithm_t, c_uint, POINTER(gnutls_datum_t), POINTER(gnutls_datum_t)]
+gnutls_privkey_sign_data.restype = c_int
+
+# no sign_data2 on cygwin
+gnutls_privkey_sign_data = libgnutls.gnutls_privkey_sign_data
+gnutls_privkey_sign_data.argtypes = [gnutls_privkey_t, gnutls_digest_algorithm_t, c_uint, POINTER(gnutls_datum_t), POINTER(gnutls_datum_t)]
+gnutls_privkey_sign_data.restype = c_int
+
+# no sign_hash2 on cygwin
+gnutls_privkey_sign_hash = libgnutls.gnutls_privkey_sign_hash
+gnutls_privkey_sign_hash.argtypes = [gnutls_privkey_t, gnutls_digest_algorithm_t, c_uint, POINTER(gnutls_datum_t), POINTER(gnutls_datum_t)]
+gnutls_privkey_sign_hash.restype = c_int
+
+gnutls_pubkey_deinit = libgnutls.gnutls_pubkey_deinit
+gnutls_pubkey_deinit.argtypes = [gnutls_pubkey_t]
+gnutls_pubkey_deinit.restype = None
+
+gnutls_pubkey_encrypt_data = libgnutls.gnutls_pubkey_encrypt_data
+gnutls_pubkey_encrypt_data.argtypes = [gnutls_pubkey_t, c_int, POINTER(gnutls_datum_t), POINTER(gnutls_datum_t)]
+gnutls_pubkey_encrypt_data.restype = c_int
+
+# no raw2 on cygwin
+gnutls_pubkey_export_rsa_raw = libgnutls.gnutls_pubkey_export_rsa_raw
+gnutls_pubkey_export_rsa_raw.argtypes = [gnutls_pubkey_t, POINTER(gnutls_datum_t), POINTER(gnutls_datum_t)]
+gnutls_pubkey_export_rsa_raw.restype = c_int
+
+gnutls_pubkey_get_pk_algorithm = libgnutls.gnutls_pubkey_get_pk_algorithm
+gnutls_pubkey_get_pk_algorithm.argtypes = [gnutls_pubkey_t, POINTER(c_uint)]
+gnutls_pubkey_get_pk_algorithm.restype = c_int
+
+gnutls_pubkey_import_rsa_raw = libgnutls.gnutls_pubkey_import_rsa_raw
+gnutls_pubkey_import_rsa_raw.argtypes = [gnutls_pubkey_t, POINTER(gnutls_datum_t), POINTER(gnutls_datum_t)]
+gnutls_pubkey_import_rsa_raw.restype = c_int
+
+gnutls_pubkey_import_tpm_url = libgnutls.gnutls_pubkey_import_tpm_url
+gnutls_pubkey_import_tpm_url.argtypes = [gnutls_pubkey_t, c_char_p, c_char_p, c_uint]
+gnutls_pubkey_import_tpm_url.restype = c_int
+
+gnutls_pubkey_import_url = libgnutls.gnutls_pubkey_import_url
+gnutls_pubkey_import_url.argtypes = [gnutls_pubkey_t, c_char_p, c_uint]
+gnutls_pubkey_import_url.restype = c_int
+
+gnutls_pubkey_init = libgnutls.gnutls_pubkey_init
+gnutls_pubkey_init.argtypes = [POINTER(gnutls_pubkey_t)]
+gnutls_pubkey_init.restype = c_int
+
+gnutls_pubkey_verify_data2 = libgnutls.gnutls_pubkey_verify_data2
+gnutls_pubkey_verify_data2.argtypes = [gnutls_pubkey_t, gnutls_sign_algorithm_t, c_int, POINTER(gnutls_datum_t), POINTER(gnutls_datum_t)]
+gnutls_pubkey_verify_data2.restype = c_int
+
+gnutls_pubkey_verify_hash2 = libgnutls.gnutls_pubkey_verify_hash2
+gnutls_pubkey_verify_hash2.argtypes = [gnutls_pubkey_t, gnutls_sign_algorithm_t, c_int, POINTER(gnutls_datum_t), POINTER(gnutls_datum_t)]
+gnutls_pubkey_verify_hash2.restype = c_int
+
 gnutls_protocol_get_id = libgnutls.gnutls_protocol_get_id
 gnutls_protocol_get_id.argtypes = [c_char_p]
 gnutls_protocol_get_id.restype = gnutls_protocol_t
