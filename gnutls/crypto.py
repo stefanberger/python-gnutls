@@ -13,6 +13,8 @@ from gnutls.errors import *
 from gnutls.library.constants import GNUTLS_SAN_DNSNAME, GNUTLS_SAN_RFC822NAME, GNUTLS_SAN_URI
 from gnutls.library.constants import GNUTLS_SAN_IPADDRESS, GNUTLS_SAN_OTHERNAME, GNUTLS_SAN_DN
 from gnutls.library.constants import GNUTLS_E_SHORT_MEMORY_BUFFER
+from gnutls.library.constants import GNUTLS_PK_RSA, GNUTLS_PK_RSA_PSS, GNUTLS_PK_DSA
+from gnutls.library.constants import GNUTLS_PK_ECDSA, GNUTLS_PK_ECDH_X25519, GNUTLS_PK_EDDSA_ED25519
 from gnutls.library.types     import *
 from gnutls.library.functions import *
 
@@ -325,4 +327,206 @@ class DHParams(object):
 
     def __del__(self):
         self.__deinit(self._c_object)
+
+
+class PrivateKey(object):
+    KEY_TYPE_NONE = 0
+    KEY_TYPE_RSA = 1
+    KEY_TYPE_DSA = 2
+    KEY_TYPE_EC = 3
+
+    def __new__(cls, *args, **kwargs):
+        instance = object.__new__(cls)
+        return instance
+
+    def __init__(self, pk=None, uri=None, keytype=KEY_TYPE_NONE):
+        self.__deinit = gnutls_privkey_deinit
+        self._c_object = gnutls_privkey_t()
+        if pk is None:
+            gnutls_privkey_init(byref(self._c_object))
+        elif isinstance(pk, PrivateKey):
+            self.__deinit = None
+            self._c_object = pk._c_object
+            uri = pk.uri
+        else:
+            raise TypeError("pk must be either None or PrivateKey")
+        self.pk = pk
+        self.uri = uri
+        self.keytype = keytype
+        self.srk_password = None
+        self.key_password = None
+
+    def __get__(self, obj, type_=None):
+        return self._c_object
+
+    def __set__(self, obj, value):
+        raise AttributeError("Read-only attribute")
+
+    def __del__(self):
+        if self.__deinit:
+            self.__deinit(self._c_object)
+
+    def is_pkcs11(self):
+        return self.uri is not None and \
+            (self.uri.startswith('tpmkey:') or self.uri.startswith('pkcs11:'))
+
+    def get_uri(self):
+        return self.uri
+
+    @staticmethod
+    def upcast(algo, pk):
+        pk.keytype = PrivateKey.pk_algorithm_to_keytype(algo)
+        if pk.keytype == PrivateKey.KEY_TYPE_RSA:
+            return RSAPrivateKey(pk)
+
+        return pk
+
+    @staticmethod
+    def generate(algo=GNUTLS_PK_RSA, bits=2048, flags=0):
+        pk = PrivateKey()
+        gnutls_privkey_generate(pk._c_object, algo, bits, flags)
+        return pk.upcast(algo, pk)
+
+    @classmethod
+    def pk_algorithm_to_keytype(cls, algo):
+        if algo in [GNUTLS_PK_RSA, GNUTLS_PK_RSA_PSS]:
+            return PrivateKey.KEY_TYPE_RSA
+        if algo in [GNUTLS_PK_DSA]:
+            return PrivateKey.KEY_TYPE_DSA
+        if algo in [GNUTLS_PK_ECDSA, GNUTLS_PK_ECDH_X25519, GNUTLS_PK_EDDSA_ED25519]:
+            return PrivateKey.KEY_TYPE_EC
+        raise ValueError('Unknown pk_algorithm %d to convert to key type' % algo)
+
+    @staticmethod
+    def import_uri(uri, flags=0, srk_password=None, key_password=None):
+        pk = PrivateKey()
+        pk.uri = uri
+        pk.srk_password = srk_password
+        pk.key_password = key_password
+
+        if not srk_password and not key_password:
+            gnutls_privkey_import_url(pk._c_object, uri, flags)
+        else:
+            gnutls_privkey_import_tpm_url(pk._c_object, uri, srk_password, key_password, flags)
+
+        algo = gnutls_privkey_get_pk_algorithm(pk._c_object, None)
+        return pk.upcast(algo, pk)
+
+    @method_args(int, int, bytes)
+    def sign_data(self, hash_algo, flags, buf):
+        data = gnutls_datum_t(cast(c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
+        _signature = gnutls_datum_t()
+        gnutls_privkey_sign_data(self._c_object, hash_algo, flags, byref(data), byref(_signature))
+        return _signature.get_string_and_free()
+
+    @method_args(int, int, bytes)
+    def sign_hash(self, hash_algo, flags, buf):
+        hash_data = gnutls_datum_t(cast(c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
+        _signature = gnutls_datum_t()
+        gnutls_privkey_sign_hash(self._c_object, hash_algo, flags, byref(hash_data), byref(_signature))
+        return _signature.get_string_and_free()
+
+    @method_args(int, bytes)
+    def decrypt_data(self, flags, ciphertext):
+        _ciphertext = gnutls_datum_t(cast(c_char_p(ciphertext), POINTER(c_ubyte)), c_uint(len(ciphertext)))
+        plaintext = gnutls_datum_t()
+        gnutls_privkey_decrypt_data(self._c_object, flags, _ciphertext, plaintext)
+        return plaintext.get_string_and_free()
+
+
+class RSAPrivateKey(PrivateKey):
+    def __init__(self, pk):
+        super(RSAPrivateKey, self).__init__(pk=pk)
+        self.srk_password = pk.srk_password
+
+    def get_public_key(self):
+        if self.uri:
+            return PublicKey.import_uri(self.uri, 0, self.srk_password)
+        m = gnutls_datum_t()
+        e = gnutls_datum_t()
+        gnutls_privkey_export_rsa_raw(self._c_object, m, e, None, None, None, None, None, None)
+        return RSAPublicKey.import_rsa_raw(m.get_string_and_free(), e.get_string_and_free())
+
+
+class PublicKey(object):
+    def __new__(cls, *args, **kwargs):
+        instance = object.__new__(cls)
+        return instance
+
+    def __init__(self, pubkey=None):
+        self.__deinit = gnutls_pubkey_deinit
+        self._c_object = gnutls_pubkey_t()
+        if pubkey is None:
+            gnutls_pubkey_init(byref(self._c_object))
+        elif isinstance(pubkey, PublicKey):
+            self.__deinit = None
+            self._c_object = pubkey._c_object
+        else:
+            raise TypeError("pk must be either None or PublicKey")
+        self.pubkey = pubkey
+
+    def __get__(self, obj, type_=None):
+        return self._c_object
+
+    def __set__(self, obj, value):
+        raise AttributeError("Read-only attribute")
+
+    def __del__(self):
+        if self.__deinit:
+            self.__deinit(self._c_object)
+
+    @staticmethod
+    def upcast(algo, pubkey):
+        keytype = PrivateKey.pk_algorithm_to_keytype(algo)
+        if keytype == PrivateKey.KEY_TYPE_RSA:
+            return RSAPublicKey(pubkey)
+        return pubkey
+
+    @staticmethod
+    def import_uri(uri, flags=0, srk_password=None):
+        pubkey = PublicKey()
+        if not srk_password:
+            gnutls_pubkey_import_url(pubkey._c_object, uri, flags)
+        else:
+            gnutls_pubkey_import_tpm_url(pubkey._c_object, uri, srk_password, flags)
+        algo = gnutls_pubkey_get_pk_algorithm(pubkey._c_object, None)
+        return pubkey.upcast(algo, pubkey)
+
+    @method_args(int, int, bytes, bytes)
+    def verify_data2(self, sign_algo, flags, buf, signature):
+        data = gnutls_datum_t(cast(c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
+        _signature = gnutls_datum_t(cast(c_char_p(signature), POINTER(c_ubyte)), c_uint(len(signature)))
+        gnutls_pubkey_verify_data2(self._c_object, sign_algo, flags, data, _signature)
+
+    @method_args(int, int, bytes, bytes)
+    def verify_hash2(self, sign_algo, flags, hashbuf, signature):
+        hash_data = gnutls_datum_t(cast(c_char_p(hashbuf), POINTER(c_ubyte)), c_uint(len(hashbuf)))
+        _signature = gnutls_datum_t(cast(c_char_p(signature), POINTER(c_ubyte)), c_uint(len(signature)))
+        gnutls_pubkey_verify_hash2(self._c_object, sign_algo, flags, hash_data, _signature)
+
+    @method_args(int, bytes)
+    def encrypt_data(self, flags, plaintext):
+        _plaintext = gnutls_datum_t(cast(c_char_p(plaintext), POINTER(c_ubyte)), c_uint(len(plaintext)))
+        ciphertext = gnutls_datum_t()
+        gnutls_pubkey_encrypt_data(self._c_object, flags, _plaintext, ciphertext)
+        return ciphertext.get_string_and_free()
+
+
+class RSAPublicKey(PublicKey):
+    def __init__(self, pubkey):
+        super(RSAPublicKey, self).__init__(pubkey=pubkey)
+
+    @staticmethod
+    def import_rsa_raw(m, e):
+        pubkey = PublicKey()
+        _m = gnutls_datum_t(cast(c_char_p(m), POINTER(c_ubyte)), c_uint(len(m)))
+        _e = gnutls_datum_t(cast(c_char_p(e), POINTER(c_ubyte)), c_uint(len(e)))
+        gnutls_pubkey_import_rsa_raw(pubkey._c_object, _m, _e)
+        return RSAPublicKey(pubkey=pubkey)
+
+    def export_rsa_raw(self):
+        m = gnutls_datum_t()
+        e = gnutls_datum_t()
+        gnutls_pubkey_export_rsa_raw(self._c_object, m, e)
+        return m.get_string_and_free(), e.get_string_and_free()
 
