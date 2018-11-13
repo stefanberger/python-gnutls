@@ -2,7 +2,7 @@
 
 import os
 
-from distutils.core import setup
+from setuptools import setup
 from gnutls import __info__ as package_info
 
 
