@@ -378,6 +378,8 @@ class PrivateKey(object):
         pk.keytype = PrivateKey.pk_algorithm_to_keytype(algo)
         if pk.keytype == PrivateKey.KEY_TYPE_RSA:
             return RSAPrivateKey(pk)
+        if pk.keytype == PrivateKey.KEY_TYPE_DSA:
+            return DSAPrivateKey(pk)
 
         return pk
 
@@ -448,6 +450,28 @@ class RSAPrivateKey(PrivateKey):
         return RSAPublicKey.import_rsa_raw(m.get_string_and_free(), e.get_string_and_free())
 
 
+class DSAPrivateKey(PrivateKey):
+    def __init__(self, pk):
+        super(DSAPrivateKey, self).__init__(pk=pk)
+
+    def get_public_key(self):
+        if self.uri:
+            return PublicKey.import_uri(self.uri, 0, self.srk_password)
+        p = gnutls_datum_t()
+        q = gnutls_datum_t()
+        g = gnutls_datum_t()
+        y = gnutls_datum_t()
+        gnutls_privkey_export_dsa_raw(self._c_object, p, q, g, y, None)
+        return DSAPublicKey.import_dsa_raw(p.get_string_and_free(),
+                                           q.get_string_and_free(),
+                                           g.get_string_and_free(),
+                                           y.get_string_and_free())
+
+    @staticmethod
+    def generate(algo=GNUTLS_PK_DSA, bits=2048, flags=0):
+        return PrivateKey.generate(algo=algo, bits=bits, flags=flags)
+
+
 class PublicKey(object):
     def __new__(cls, *args, **kwargs):
         instance = object.__new__(cls)
@@ -480,6 +504,8 @@ class PublicKey(object):
         keytype = PrivateKey.pk_algorithm_to_keytype(algo)
         if keytype == PrivateKey.KEY_TYPE_RSA:
             return RSAPublicKey(pubkey)
+        if keytype == PrivateKey.KEY_TYPE_DSA:
+            return DSAPublicKey(pubkey)
         return pubkey
 
     @staticmethod
@@ -529,4 +555,30 @@ class RSAPublicKey(PublicKey):
         e = gnutls_datum_t()
         gnutls_pubkey_export_rsa_raw(self._c_object, m, e)
         return m.get_string_and_free(), e.get_string_and_free()
+
+
+class DSAPublicKey(PublicKey):
+    def __init__(self, pubkey):
+        super(DSAPublicKey, self).__init__(pubkey=pubkey)
+
+    @staticmethod
+    def import_dsa_raw(p, q, g, y):
+        pubkey = PublicKey()
+        _p = gnutls_datum_t(cast(c_char_p(p), POINTER(c_ubyte)), c_uint(len(p)))
+        _q = gnutls_datum_t(cast(c_char_p(q), POINTER(c_ubyte)), c_uint(len(q)))
+        _g = gnutls_datum_t(cast(c_char_p(g), POINTER(c_ubyte)), c_uint(len(g)))
+        _y = gnutls_datum_t(cast(c_char_p(y), POINTER(c_ubyte)), c_uint(len(y)))
+        gnutls_pubkey_import_dsa_raw(pubkey._c_object, _p, _q, _g, _y)
+        return DSAPublicKey(pubkey=pubkey)
+
+    def export_dsa_raw(self):
+        p = gnutls_datum_t()
+        q = gnutls_datum_t()
+        g = gnutls_datum_t()
+        y = gnutls_datum_t()
+        gnutls_pubkey_export_dsa_raw(self._c_object, p, q, g, y)
+        return p.get_string_and_free(), \
+            q.get_string_and_free(), \
+            g.get_string_and_free(), \
+            y.get_string_and_free()
 
