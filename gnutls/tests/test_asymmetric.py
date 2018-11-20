@@ -5,11 +5,13 @@ import os
 import sys
 import unittest
 
-from gnutls.crypto import PrivateKey, RSAPrivateKey
+from gnutls.crypto import PrivateKey, RSAPrivateKey, DSAPrivateKey
 from gnutls.errors import GNUTLSError
 from gnutls.library.constants import GNUTLS_PK_RSA, \
     GNUTLS_DIG_SHA1, GNUTLS_DIG_SHA256, GNUTLS_DIG_SHA512, \
-    GNUTLS_SIGN_RSA_SHA1, GNUTLS_SIGN_RSA_SHA256, GNUTLS_SIGN_RSA_SHA512
+    GNUTLS_SIGN_RSA_SHA1, GNUTLS_SIGN_RSA_SHA256, GNUTLS_SIGN_RSA_SHA512, \
+    GNUTLS_PK_DSA, \
+    GNUTLS_SIGN_DSA_SHA1, GNUTLS_SIGN_DSA_SHA256, GNUTLS_SIGN_DSA_SHA512
 
 def is_tpm_not_available_error(err_message):
 
@@ -45,6 +47,25 @@ class TestSigning(unittest.TestCase):
                 self.assertEqual(len(signature2), bits / 8)
                 pubkey.verify_hash2(sign_algo, 0, hash, signature2)
 
+    def test_generate_dsa_and_sign(self):
+        teststring = b'foobar'
+
+        for bits in [2048]:
+            privkey = PrivateKey.generate(GNUTLS_PK_DSA, bits)
+            pubkey = privkey.get_public_key()
+            for hash_algo, sign_algo, hashfunc in \
+                    [(GNUTLS_DIG_SHA256, GNUTLS_SIGN_DSA_SHA256, hashlib.sha256),
+                     (GNUTLS_DIG_SHA1,   GNUTLS_SIGN_DSA_SHA1  , hashlib.sha1),
+                     (GNUTLS_DIG_SHA512, GNUTLS_SIGN_DSA_SHA512, hashlib.sha512)]:
+                signature = privkey.sign_data(hash_algo, 0, teststring)
+                pubkey.verify_data2(sign_algo, 0, teststring, signature)
+
+                hash = hashfunc(teststring).digest()
+                pubkey.verify_hash2(sign_algo, 0, hash, signature)
+
+                signature2 = privkey.sign_hash(hash_algo, 0, hash)
+                pubkey.verify_hash2(sign_algo, 0, hash, signature2)
+
     def test_tpmkey_sign(self):
         teststring = b'foobar'
 
@@ -74,4 +95,3 @@ class TestEncryption(unittest.TestCase):
             self.assertEqual(len(enc_data), bits / 8)
             plaintext = privkey.decrypt_data(0, enc_data)
             self.assertEqual(plaintext, teststring)
-

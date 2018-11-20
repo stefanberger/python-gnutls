@@ -568,6 +568,11 @@ gnutls_privkey_deinit.argtypes = [gnutls_privkey_t]
 gnutls_privkey_deinit.restype = None
 
 # no raw2 on cygwin
+gnutls_privkey_export_dsa_raw = libgnutls.gnutls_privkey_export_dsa_raw
+gnutls_privkey_export_dsa_raw.argtypes = [gnutls_privkey_t, POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t)]
+gnutls_privkey_export_dsa_raw.restype = c_int
+
+# no raw2 on cygwin
 gnutls_privkey_export_rsa_raw = libgnutls.gnutls_privkey_export_rsa_raw
 gnutls_privkey_export_rsa_raw.argtypes = [gnutls_privkey_t, POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t)]
 gnutls_privkey_export_rsa_raw.restype = c_int
@@ -622,6 +627,10 @@ gnutls_pubkey_export_rsa_raw.restype = c_int
 gnutls_pubkey_get_pk_algorithm = libgnutls.gnutls_pubkey_get_pk_algorithm
 gnutls_pubkey_get_pk_algorithm.argtypes = [gnutls_pubkey_t, POINTER(c_uint)]
 gnutls_pubkey_get_pk_algorithm.restype = c_int
+
+gnutls_pubkey_import_dsa_raw = libgnutls.gnutls_pubkey_import_dsa_raw
+gnutls_pubkey_import_dsa_raw.argtypes = [gnutls_pubkey_t, POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t), POINTER(gnutls_datum_t)]
+gnutls_pubkey_import_dsa_raw.restype = c_int
 
 gnutls_pubkey_import_rsa_raw = libgnutls.gnutls_pubkey_import_rsa_raw
 gnutls_pubkey_import_rsa_raw.argtypes = [gnutls_pubkey_t, POINTER(gnutls_datum_t), POINTER(gnutls_datum_t)]
