@@ -2,13 +2,12 @@
 
 import os
 
-from setuptools import setup
+from setuptools import setup, Extension
 from gnutls import __info__ as package_info
 
 
 def find_packages(toplevel):
     return [directory.replace(os.path.sep, '.') for directory, subdirs, files in os.walk(toplevel) if '__init__.py' in files]
-
 
 setup(
     name=package_info.__project__,
@@ -35,3 +34,15 @@ setup(
     packages=find_packages('gnutls')
 )
 
+pygnutls = Extension('_libgnutls',
+                     sources = ['pygnutls.c'],
+                     libraries = ['gnutls'])
+
+setup(
+    name='libgnutls',
+    version=package_info.__version__,
+
+    ext_modules = [pygnutls],
+    # do not create an egg from it so we can cdll.LoadLibrary() it
+    zip_safe = False,
+)
