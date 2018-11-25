@@ -57,6 +57,8 @@ def load_library(abi_versions):
 
 libgnutls = load_library(abi_versions=(28, 30))  # will use the highest of the available ABI versions
 
+import _libgnutls
+_libgnutls.init()
 
 from gnutls.library import constants
 from gnutls.library import errors

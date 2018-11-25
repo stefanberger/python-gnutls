@@ -2,13 +2,16 @@
 
 import os
 
-from setuptools import setup
+from setuptools import setup, Extension
 from gnutls import __info__ as package_info
 
 
 def find_packages(toplevel):
     return [directory.replace(os.path.sep, '.') for directory, subdirs, files in os.walk(toplevel) if '__init__.py' in files]
 
+libgnutls = Extension('_libgnutls',
+                      sources = ['libgnutls.c'],
+                      libraries = ['gnutls'])
 
 setup(
     name=package_info.__project__,
@@ -37,5 +40,5 @@ setup(
         'twisted',
         'enum34;python_version<"3.4"'
     ],
+    ext_modules=[libgnutls],
 )
-
