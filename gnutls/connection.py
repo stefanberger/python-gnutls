@@ -407,7 +407,7 @@ class ServerSessionFactory(object):
 
     def __init__(self, socket, context, session_class=ServerSession):
         if not issubclass(session_class, ServerSession):
-            raise TypeError, "session_class must be a subclass of ServerSession"
+            raise TypeError("session_class must be a subclass of ServerSession")
         self.socket = socket
         self.context = context
         self.session_class = session_class

@@ -24,7 +24,33 @@ static PyMethodDef _libgnutlsModule_methods[] = {
     {NULL, NULL, 0}
 };
 
+#if PY_MAJOR_VERSION == 3
+static struct PyModuleDef _libgnutls_module = {
+    PyModuleDef_HEAD_INIT,
+    "pygnutls",
+    NULL,
+    0,
+    _libgnutlsModule_methods,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+};
+#endif
+
+#if PY_MAJOR_VERSION == 3
+PyMODINIT_FUNC PyInit__libgnutls(void)
+#else
 PyMODINIT_FUNC init_libgnutls(void)
+#endif
 {
-    (void) Py_InitModule("_libgnutls", _libgnutlsModule_methods);
+#if PY_MAJOR_VERSION == 3
+    PyObject *module = PyModule_Create(&_libgnutls_module);
+#else
+    (void) Py_InitModule("pygnutls", _libgnutlsModule_methods);
+#endif
+
+#if PY_MAJOR_VERSION == 3
+    return module;
+#endif
 }

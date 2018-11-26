@@ -18,6 +18,7 @@ __name_map__ = {
 }
 
 
+import sys
 from gnutls.library import constants
 
 class GNUTLSConstant(int):
@@ -31,7 +32,11 @@ class GNUTLSConstant(int):
 
 ## Generate all exported constants
 code = '\n'.join(["%s = GNUTLSConstant('%s')" % (name, name) for name in __all__])
-exec code in locals(), globals()
-del code, name
+if sys.version_info > (3, 0):
+    exec(code, locals())
+    del code
+else:
+    exec(code, locals(), globals())
+    del code, name
 
 del constants
