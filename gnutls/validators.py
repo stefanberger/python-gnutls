@@ -1,8 +1,9 @@
 
 """GNUTLS data validators"""
 
-__all__ = ['function_args', 'method_args', 'none', 'ignore', 'list_of', 'one_of']
+import sys
 
+__all__ = ['function_args', 'method_args', 'none', 'ignore', 'list_of', 'one_of']
 
 # Helper functions (internal use)
 #
@@ -135,8 +136,9 @@ class one_of(object):
 
 class list_of(object):
     def __init__(self, *args):
-        if filter(lambda x: not isclass(x), args):
-            raise TypeError("list_of arguments must be types")
+        if not sys.version_info > (3, 0):
+            if filter(lambda x: not isclass(x), args):
+                raise TypeError("list_of arguments must be types")
         if len(args) == 1:
             self.type = args[0]
         else:
@@ -159,18 +161,34 @@ def preserve_signature(func):
     constants  = [c for c in (getargspec(func)[3] or []) if isinstance(c, GNUTLSConstant)]
     signature  = formatargspec(*getargspec(func))[1:-1]
     parameters = formatargspec(*getargspec(func), **{'formatvalue': lambda value: ""})[1:-1]
-    def fix_signature(wrapper):
-        if constants:
-            ## import the required GNUTLSConstants used as function default arguments
-            code = "from gnutls.constants import %s\n" % ', '.join(c.name for c in constants)
-            exec code in locals(), locals()
-        code = "def %s(%s): return wrapper(%s)\nnew_wrapper = %s\n" % (func.__name__, signature, parameters, func.__name__)
-        exec code in locals(), locals()
-        new_wrapper.__name__ = func.__name__
-        new_wrapper.__doc__ = func.__doc__
-        new_wrapper.__module__ = func.__module__
-        new_wrapper.__dict__.update(func.__dict__)
-        return new_wrapper
+    if sys.version_info > (3, 0):
+        def fix_signature(wrapper):
+            ns = {}
+            if constants:
+                ## import the required GNUTLSConstants used as function default arguments
+                code = "from gnutls.constants import %s\n" % ', '.join(c.name for c in constants)
+                exec(code, ns, ns)
+            code = "def %s(%s): return wrapper(%s)\nnew_wrapper = %s\n" % (func.__name__, signature, parameters, func.__name__)
+            exec(code, ns, ns)
+            new_wrapper = ns['new_wrapper']
+            new_wrapper.__name__ = func.__name__
+            new_wrapper.__doc__ = func.__doc__
+            new_wrapper.__module__ = func.__module__
+            new_wrapper.__dict__.update(func.__dict__)
+            return new_wrapper
+    else:
+        def fix_signature(wrapper):
+            if constants:
+                ## import the required GNUTLSConstants used as function default arguments
+                code = "from gnutls.constants import %s\n" % ', '.join(c.name for c in constants)
+                exec(code, locals(), locals())
+            code = "def %s(%s): return wrapper(%s)\nnew_wrapper = %s\n" % (func.__name__, signature, parameters, func.__name__)
+            exec(code, locals(), locals())
+            new_wrapper.__name__ = func.__name__
+            new_wrapper.__doc__ = func.__doc__
+            new_wrapper.__module__ = func.__module__
+            new_wrapper.__dict__.update(func.__dict__)
+            return new_wrapper
     return fix_signature
 
 # Argument validating decorators
@@ -180,20 +198,25 @@ def _callable_args(*args, **kwargs):
     """Internal function used by argument checking decorators"""
     start = kwargs.get('_start', 0)
     validators = []
-    for i, arg in enumerate(args):
-        validator = Validator.get(arg)
-        if validator is None:
-            raise TypeError("unsupported type `%r' at position %d for argument checking decorator" % (arg, i+1))
-        validators.append(validator)
+    if not sys.version_info > (3, 0):
+        for i, arg in enumerate(args):
+            validator = Validator.get(arg)
+            if validator is None:
+                raise TypeError("unsupported type `%r' at position %d for argument checking decorator" % (arg, i+1))
+            validators.append(validator)
     def check_args_decorator(func):
-        @preserve_signature(func)
-        def check_args(*func_args):
-            pos = start
-            for validator in validators:
-                if not validator.check(func_args[pos]):
-                    raise TypeError("argument %d must be %s" % (pos+1-start, validator.name))
-                pos += 1
-            return func(*func_args)
+        if sys.version_info > (3, 0):
+            def check_args(*func_args):
+                return func(*func_args)
+        else:
+            @preserve_signature(func)
+            def check_args(*func_args):
+                pos = start
+                for validator in validators:
+                    if not validator.check(func_args[pos]):
+                        raise TypeError("argument %d must be %s" % (pos+1-start, validator.name))
+                    pos += 1
+                return func(*func_args)
         return check_args
     return check_args_decorator
 
@@ -205,5 +228,7 @@ def method_args(*args):
 @decorator
 def function_args(*args):
     """Check functions or staticmethod arguments"""
+    if sys.version_info > (3, 0):
+        return
     return _callable_args(*args)
 
