@@ -3,6 +3,7 @@
 
 __all__ = ['X509Credentials', 'TLSContext', 'connectTLS', 'listenTLS']
 
+import sys
 from time import time
 
 from twisted.python import failure
@@ -77,7 +78,7 @@ class TLSMixin:
             return tcp.Connection.doRead(self)
         except (OperationWouldBlock, OperationInterrupted):
             return
-        except GNUTLSError, e:
+        except GNUTLSError as e:
             return e
 
     def writeSomeData(self, data):
@@ -87,7 +88,7 @@ class TLSMixin:
             return self.writeSomeData(data)
         except OperationWouldBlock:
             return 0
-        except GNUTLSError, e:
+        except GNUTLSError as e:
             return e
 
     def _sendCloseReason(self, reason):
@@ -117,11 +118,11 @@ class TLSMixin:
         self.stopWriting()
         try:
             self._sendCloseAlert(SHUT_WR)
-        except OperationWouldBlock, e:
+        except OperationWouldBlock as e:
             if self.socket.interrupted_while_writing:
                 self.startWriting()
                 return
-        except Exception, e:
+        except Exception as e:
             return e
         del self.doWrite
 
@@ -135,8 +136,9 @@ class TLSMixin:
 
 class TLSClient(TLSMixin, tcp.Client):
     """Add TLS capabilities to a TCP client"""
-    
-    implementsOnly(interfaces.ISSLTransport, *[i for i in implementedBy(tcp.Client) if i != interfaces.ITLSTransport])
+
+    if not sys.version_info > (3, 0):
+        implementsOnly(interfaces.ISSLTransport, *[i for i in implementedBy(tcp.Client) if i != interfaces.ITLSTransport])
     
     def __init__(self, host, port, bindAddress, context, connector, reactor=None, server_name=None):
         self.context = context
@@ -153,7 +155,7 @@ class TLSClient(TLSMixin, tcp.Client):
             return
         try:
             self.context.credentials.verify_callback(self.socket.peer_certificate)
-        except Exception, e:
+        except Exception as e:
             self.loseConnection(e)
             return
         else:
@@ -166,7 +168,7 @@ class TLSClient(TLSMixin, tcp.Client):
             return
         try:
             session.verify_peer()
-        except Exception, e:
+        except Exception as e:
             preverify_status = e
         else:
             preverify_status = CertificateOK
@@ -184,7 +186,7 @@ class TLSClient(TLSMixin, tcp.Client):
             if self.socket.interrupted_while_writing:
                 self.startWriting()
             return
-        except GNUTLSError, e:
+        except GNUTLSError as e:
             del self.doRead
             self.failIfNotConnected(err = e)
             return
@@ -195,11 +197,11 @@ class TLSClient(TLSMixin, tcp.Client):
         
         try:
             self._verifyPeer()
-        except GNUTLSError, e:
+        except GNUTLSError as e:
             self.closeTLSSession(e)
             self.failIfNotConnected(err = e)
             return
-        except Exception, e:
+        except Exception as e:
             self.closeTLSSession(e)
             self.failIfNotConnected(err = error.getConnectError(str(e)))
             return
@@ -243,7 +245,8 @@ class TLSConnector(base.BaseConnector):
 class TLSServer(TLSMixin, tcp.Server):
     """Add TLS capabilities to a TCP server"""
     
-    implementsOnly(interfaces.ISSLTransport, *[i for i in implementedBy(tcp.Server) if i != interfaces.ITLSTransport])
+    if not sys.version_info > (3, 0):
+        implementsOnly(interfaces.ISSLTransport, *[i for i in implementedBy(tcp.Server) if i != interfaces.ITLSTransport])
     
     def __init__(self, sock, protocol, client, server, sessionno, *args, **kw):
         self.__watchdog = None
@@ -258,7 +261,7 @@ class TLSServer(TLSMixin, tcp.Server):
             return
         try:
             self.context.credentials.verify_callback(self.socket.peer_certificate)
-        except Exception, e:
+        except Exception as e:
             self.loseConnection(e)
             return
         else:
@@ -271,7 +274,7 @@ class TLSServer(TLSMixin, tcp.Server):
             return
         try:
             session.verify_peer()
-        except Exception, e:
+        except Exception as e:
             preverify_status = e
         else:
             preverify_status = CertificateOK
@@ -289,7 +292,7 @@ class TLSServer(TLSMixin, tcp.Server):
             if self.socket.interrupted_while_writing:
                 self.startWriting()
             return
-        except GNUTLSError, e:
+        except GNUTLSError as e:
             del self.doRead
             return e
         
@@ -300,7 +303,7 @@ class TLSServer(TLSMixin, tcp.Server):
         
         try:
             self._verifyPeer()
-        except Exception, e:
+        except Exception as e:
             self.loseConnection(e)
             return
         
@@ -353,12 +356,14 @@ def listenTLS(reactor, port, factory, context, backlog=50, interface='', session
 
 ## Add the connectTLS and listenTLS methods to the reactor
 
-import new
-from twisted.internet.posixbase import PosixReactorBase
 
-method = new.instancemethod(connectTLS, None, PosixReactorBase)
-setattr(PosixReactorBase, 'connectTLS', method)
+if not sys.version_info > (3, 0):
+    import new
+    from twisted.internet.posixbase import PosixReactorBase
 
-method = new.instancemethod(listenTLS, None, PosixReactorBase)
-setattr(PosixReactorBase, 'listenTLS', method)
+    method = new.instancemethod(connectTLS, None, PosixReactorBase)
+    setattr(PosixReactorBase, 'connectTLS', method)
+
+    method = new.instancemethod(listenTLS, None, PosixReactorBase)
+    setattr(PosixReactorBase, 'listenTLS', method)
 

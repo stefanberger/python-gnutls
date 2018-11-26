@@ -4,6 +4,7 @@
 __all__ = ['X509Name', 'X509Certificate', 'X509PrivateKey', 'X509Identity', 'X509CRL', 'DHParams']
 
 import re
+import sys
 from ctypes import *
 
 from gnutls.validators import method_args, one_of
@@ -17,6 +18,18 @@ from gnutls.library.constants import GNUTLS_PK_RSA, GNUTLS_PK_RSA_PSS, GNUTLS_PK
 from gnutls.library.constants import GNUTLS_PK_ECDSA, GNUTLS_PK_ECDH_X25519, GNUTLS_PK_EDDSA_ED25519
 from gnutls.library.types     import *
 from gnutls.library.functions import *
+
+
+if sys.version_info > (3, 0):
+    def _c_char_p(arr):
+        if isinstance(arr, str):
+            return c_char_p(bytes(arr, 'utf-8'))
+        elif isinstance(arr, bytes):
+            return c_char_p(arr)
+        raise TypeError('arr is of unsupported type (%s)' % type(arr))
+else:
+    def _c_char_p(arr):
+        return c_char_p(bytes(arr))
 
 
 class X509NameMeta(type):
@@ -80,7 +93,7 @@ class X509Certificate(object):
     @method_args(str, one_of(X509_FMT_PEM, X509_FMT_DER))
     def __init__(self, buf, format=X509_FMT_PEM):
         gnutls_x509_crt_init(byref(self._c_object))
-        data = gnutls_datum_t(cast(c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
+        data = gnutls_datum_t(cast(_c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
         gnutls_x509_crt_import(self._c_object, byref(data), format)
 
     def __del__(self):
@@ -209,7 +222,7 @@ class X509PrivateKey(object):
     @method_args(str, one_of(X509_FMT_PEM, X509_FMT_DER))
     def __init__(self, buf, format=X509_FMT_PEM):
         gnutls_x509_privkey_init(byref(self._c_object))
-        data = gnutls_datum_t(cast(c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
+        data = gnutls_datum_t(cast(_c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
         gnutls_x509_privkey_import(self._c_object, byref(data), format)
 
     def __del__(self):
@@ -259,7 +272,7 @@ class X509CRL(object):
     @method_args(str, one_of(X509_FMT_PEM, X509_FMT_DER))
     def __init__(self, buf, format=X509_FMT_PEM):
         gnutls_x509_crl_init(byref(self._c_object))
-        data = gnutls_datum_t(cast(c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
+        data = gnutls_datum_t(cast(_c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
         gnutls_x509_crl_import(self._c_object, byref(data), format)
 
     def __del__(self):
@@ -407,30 +420,30 @@ class PrivateKey(object):
         pk.key_password = key_password
 
         if not srk_password and not key_password:
-            gnutls_privkey_import_url(pk._c_object, uri, flags)
+            gnutls_privkey_import_url(pk._c_object, _c_char_p(uri), flags)
         else:
-            gnutls_privkey_import_tpm_url(pk._c_object, uri, srk_password, key_password, flags)
+            gnutls_privkey_import_tpm_url(pk._c_object, _c_char_p(uri), _c_char_p(srk_password), _c_char_p(key_password), flags)
 
         algo = gnutls_privkey_get_pk_algorithm(pk._c_object, None)
         return pk.upcast(algo, pk)
 
     @method_args(int, int, bytes)
     def sign_data(self, hash_algo, flags, buf):
-        data = gnutls_datum_t(cast(c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
+        data = gnutls_datum_t(cast(_c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
         _signature = gnutls_datum_t()
         gnutls_privkey_sign_data(self._c_object, hash_algo, flags, byref(data), byref(_signature))
         return _signature.get_string_and_free()
 
     @method_args(int, int, bytes)
     def sign_hash(self, hash_algo, flags, buf):
-        hash_data = gnutls_datum_t(cast(c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
+        hash_data = gnutls_datum_t(cast(_c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
         _signature = gnutls_datum_t()
         gnutls_privkey_sign_hash(self._c_object, hash_algo, flags, byref(hash_data), byref(_signature))
         return _signature.get_string_and_free()
 
     @method_args(int, bytes)
     def decrypt_data(self, flags, ciphertext):
-        _ciphertext = gnutls_datum_t(cast(c_char_p(ciphertext), POINTER(c_ubyte)), c_uint(len(ciphertext)))
+        _ciphertext = gnutls_datum_t(cast(_c_char_p(ciphertext), POINTER(c_ubyte)), c_uint(len(ciphertext)))
         plaintext = gnutls_datum_t()
         gnutls_privkey_decrypt_data(self._c_object, flags, _ciphertext, plaintext)
         return plaintext.get_string_and_free()
@@ -512,27 +525,27 @@ class PublicKey(object):
     def import_uri(uri, flags=0, srk_password=None):
         pubkey = PublicKey()
         if not srk_password:
-            gnutls_pubkey_import_url(pubkey._c_object, uri, flags)
+            gnutls_pubkey_import_url(pubkey._c_object, _c_char_p(uri), flags)
         else:
-            gnutls_pubkey_import_tpm_url(pubkey._c_object, uri, srk_password, flags)
+            gnutls_pubkey_import_tpm_url(pubkey._c_object, _c_char_p(uri), _c_char_p(srk_password), flags)
         algo = gnutls_pubkey_get_pk_algorithm(pubkey._c_object, None)
         return pubkey.upcast(algo, pubkey)
 
     @method_args(int, int, bytes, bytes)
     def verify_data2(self, sign_algo, flags, buf, signature):
-        data = gnutls_datum_t(cast(c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
-        _signature = gnutls_datum_t(cast(c_char_p(signature), POINTER(c_ubyte)), c_uint(len(signature)))
+        data = gnutls_datum_t(cast(_c_char_p(buf), POINTER(c_ubyte)), c_uint(len(buf)))
+        _signature = gnutls_datum_t(cast(_c_char_p(signature), POINTER(c_ubyte)), c_uint(len(signature)))
         gnutls_pubkey_verify_data2(self._c_object, sign_algo, flags, data, _signature)
 
     @method_args(int, int, bytes, bytes)
     def verify_hash2(self, sign_algo, flags, hashbuf, signature):
-        hash_data = gnutls_datum_t(cast(c_char_p(hashbuf), POINTER(c_ubyte)), c_uint(len(hashbuf)))
-        _signature = gnutls_datum_t(cast(c_char_p(signature), POINTER(c_ubyte)), c_uint(len(signature)))
+        hash_data = gnutls_datum_t(cast(_c_char_p(hashbuf), POINTER(c_ubyte)), c_uint(len(hashbuf)))
+        _signature = gnutls_datum_t(cast(_c_char_p(signature), POINTER(c_ubyte)), c_uint(len(signature)))
         gnutls_pubkey_verify_hash2(self._c_object, sign_algo, flags, hash_data, _signature)
 
     @method_args(int, bytes)
     def encrypt_data(self, flags, plaintext):
-        _plaintext = gnutls_datum_t(cast(c_char_p(plaintext), POINTER(c_ubyte)), c_uint(len(plaintext)))
+        _plaintext = gnutls_datum_t(cast(_c_char_p(plaintext), POINTER(c_ubyte)), c_uint(len(plaintext)))
         ciphertext = gnutls_datum_t()
         gnutls_pubkey_encrypt_data(self._c_object, flags, _plaintext, ciphertext)
         return ciphertext.get_string_and_free()
@@ -545,8 +558,8 @@ class RSAPublicKey(PublicKey):
     @staticmethod
     def import_rsa_raw(m, e):
         pubkey = PublicKey()
-        _m = gnutls_datum_t(cast(c_char_p(m), POINTER(c_ubyte)), c_uint(len(m)))
-        _e = gnutls_datum_t(cast(c_char_p(e), POINTER(c_ubyte)), c_uint(len(e)))
+        _m = gnutls_datum_t(cast(_c_char_p(m), POINTER(c_ubyte)), c_uint(len(m)))
+        _e = gnutls_datum_t(cast(_c_char_p(e), POINTER(c_ubyte)), c_uint(len(e)))
         gnutls_pubkey_import_rsa_raw(pubkey._c_object, _m, _e)
         return RSAPublicKey(pubkey=pubkey)
 
@@ -564,10 +577,10 @@ class DSAPublicKey(PublicKey):
     @staticmethod
     def import_dsa_raw(p, q, g, y):
         pubkey = PublicKey()
-        _p = gnutls_datum_t(cast(c_char_p(p), POINTER(c_ubyte)), c_uint(len(p)))
-        _q = gnutls_datum_t(cast(c_char_p(q), POINTER(c_ubyte)), c_uint(len(q)))
-        _g = gnutls_datum_t(cast(c_char_p(g), POINTER(c_ubyte)), c_uint(len(g)))
-        _y = gnutls_datum_t(cast(c_char_p(y), POINTER(c_ubyte)), c_uint(len(y)))
+        _p = gnutls_datum_t(cast(_c_char_p(p), POINTER(c_ubyte)), c_uint(len(p)))
+        _q = gnutls_datum_t(cast(_c_char_p(q), POINTER(c_ubyte)), c_uint(len(q)))
+        _g = gnutls_datum_t(cast(_c_char_p(g), POINTER(c_ubyte)), c_uint(len(g)))
+        _y = gnutls_datum_t(cast(_c_char_p(y), POINTER(c_ubyte)), c_uint(len(y)))
         gnutls_pubkey_import_dsa_raw(pubkey._c_object, _p, _q, _g, _y)
         return DSAPublicKey(pubkey=pubkey)
 
