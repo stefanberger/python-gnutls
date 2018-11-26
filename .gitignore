@@ -1,0 +1,8 @@
+*~
+*.dll
+*.dylib
+*.pyc
+*.so
+build/
+dist/
+*.egg-info/
