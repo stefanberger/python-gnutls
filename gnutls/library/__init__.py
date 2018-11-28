@@ -80,4 +80,3 @@ if functions.gnutls_check_version(b'3.3') is None:
 
 
 del get_system_name, library_locations, load_library
-
