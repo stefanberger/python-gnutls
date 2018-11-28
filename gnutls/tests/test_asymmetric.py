@@ -2,9 +2,11 @@
 
 import hashlib
 import os
+import subprocess
 import sys
 import unittest
 
+from gnutls.callbacks import gnutls_set_pin_for_keyuri
 from gnutls.crypto import PrivateKey, RSAPrivateKey
 from gnutls.errors import GNUTLSError
 from gnutls.library.constants import GNUTLS_PK_RSA, \
@@ -13,10 +15,20 @@ from gnutls.library.constants import GNUTLS_PK_RSA, \
     GNUTLS_PK_DSA, \
     GNUTLS_SIGN_DSA_SHA1, GNUTLS_SIGN_DSA_SHA256, GNUTLS_SIGN_DSA_SHA512
 
+
 def is_tpm_not_available_error(err_message):
 
     errors = ['TPM key was not found in persistent storage.',
               'Cannot initialize a session with the TPM.',
+              'An unimplemented or disabled feature has been requested.']
+    for error in errors:
+        if err_message.find(error) >= 0:
+            return True
+    return False
+
+
+def is_pkcs11_not_available_error(err_message):
+    errors = ['The requested PKCS #11 object is not available',
               'An unimplemented or disabled feature has been requested.']
     for error in errors:
         if err_message.find(error) >= 0:
@@ -83,6 +95,36 @@ class TestSigning(unittest.TestCase):
 
 
 class TestEncryption(unittest.TestCase):
+    @staticmethod
+    def runSetupSofthsm(command):
+        keyuri = None
+        script = os.path.dirname(os.path.abspath(__file__)) + "/setup_softhsm"
+        args = [script, command]
+        proc = subprocess.Popen(args, stdout=subprocess.PIPE)
+        for line in proc.stdout:
+            if line.startswith(b'keyuri:'):
+                keyuri = line[7:].lstrip().rstrip()
+                if type(keyuri).__name__ == 'bytes':
+                    keyuri = keyuri.decode('utf-8')
+        proc.wait()
+        proc.stdout.close()
+        return keyuri
+
+    @classmethod
+    def setUpClass(cls):
+        cls.runSetupSofthsm('setup')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.runSetupSofthsm('teardown')
+
+    def _get_keyuri(self):
+        keyuri = TestEncryption.runSetupSofthsm('getkeyuri')
+        if keyuri:
+            sys.stderr.write("[Using %s] " % keyuri)
+        else:
+            sys.stderr.write("[No key available] ")
+        return keyuri
 
     def test_generate_rsa_and_encrypt(self):
         teststring = b'foobar'
@@ -95,3 +137,24 @@ class TestEncryption(unittest.TestCase):
             self.assertEqual(len(enc_data), bits / 8)
             plaintext = privkey.decrypt_data(0, enc_data)
             self.assertEqual(plaintext, teststring)
+
+    def test_tpmkey_encrypt(self):
+        teststring = b'foobar'
+
+        p11uri = self._get_keyuri()
+        if not p11uri:
+            return
+
+        gnutls_set_pin_for_keyuri(p11uri, '1234')
+        try:
+            privkey = PrivateKey.import_uri(p11uri)
+        except GNUTLSError as ex:
+            if is_pkcs11_not_available_error(str(ex)):
+                sys.stderr.write("[%s] " % ex)
+                return unittest.skip("%s" % ex)
+            raise ex
+        pubkey = privkey.get_public_key()
+        enc_data = pubkey.encrypt_data(0, teststring)
+        self.assertEqual(len(enc_data), 384)
+        plaintext = privkey.decrypt_data(0, enc_data)
+        self.assertEqual(plaintext, teststring)
