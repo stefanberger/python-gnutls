@@ -24,6 +24,14 @@ def is_tpm_not_available_error(err_message):
     return False
 
 
+def is_pkcs11_not_available_error(err_message):
+    errors = ['The requested PKCS #11 object is not available']
+    for error in errors:
+        if err_message.find(error) >= 0:
+            return True
+    return False
+
+
 class TestSigning(unittest.TestCase):
 
     def test_generate_rsa_and_sign(self):
@@ -95,3 +103,19 @@ class TestEncryption(unittest.TestCase):
             self.assertEqual(len(enc_data), bits / 8)
             plaintext = privkey.decrypt_data(0, enc_data)
             self.assertEqual(plaintext, teststring)
+
+    def test_tpmkey_encrypt(self):
+        teststring = b'foobar'
+
+        try:
+            privkey = PrivateKey.import_uri(
+                'pkcs11:model=SoftHSM%20v2;manufacturer=SoftHSM%20project;serial=aea7b4fdf481192c;token=mytoken;id=%34;object=mykey;type=public')
+        except GNUTLSError as ex:
+            if is_pkcs11_not_available_error(str(ex)):
+                return unittest.skip("Key not available")
+            raise ex
+        pubkey = privkey.get_public_key()
+        enc_data = pubkey.encrypt_data(0, teststring)
+        self.assertEqual(len(enc_data), 384)
+        plaintext = privkey.decrypt_data(0, enc_data)
+        self.assertEqual(plaintext, teststring)
