@@ -59,6 +59,8 @@ libgnutls = load_library(abi_versions=(28, 30))  # will use the highest of the a
 
 import _libgnutls
 _libgnutls.init()
+from gnutls.library.callbacks import gnutls_pin_function_cb
+_libgnutls.pkcs11_set_pin_function(gnutls_pin_function_cb)
 
 from gnutls.library import constants
 from gnutls.library import errors
@@ -78,4 +80,3 @@ if functions.gnutls_check_version(b'3.3') is None:
 
 
 del get_system_name, library_locations, load_library
-
