@@ -35,6 +35,7 @@ setup(
     packages=find_packages('gnutls'),
     install_requires=[
         'twisted',
+        'enum34;python_version<"3.4"'
     ],
 )
 
