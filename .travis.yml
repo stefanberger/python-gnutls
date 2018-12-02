@@ -1,0 +1,32 @@
+sudo: false
+
+language: python
+
+cache: pip
+
+dist: xenial
+
+addons:
+  apt:
+    packages:
+    - gnutls-bin
+    - libgnutls-dev
+
+matrix:
+  include:
+    - python: 2.7
+      env: TOXENV=py27
+    - python: 3.6
+      env: TOXENV=py36
+
+install:
+  - pip install --upgrade pip setuptools
+  - pip --version
+  - pip install tox
+  - tox --version
+
+script:
+  - tox
+
+after_failure:
+  - cat .tox/py27/log/py27-*.log
