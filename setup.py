@@ -32,6 +32,9 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules"
     ],
 
-    packages=find_packages('gnutls')
+    packages=find_packages('gnutls'),
+    install_requires=[
+        'twisted',
+    ],
 )
 
