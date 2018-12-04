@@ -158,7 +158,7 @@ class X509Certificate(object):
             number = 0
             offset = sizeof(c_void_p) * 8
             for n in numbers:
-                number = (number<<offset) + n
+                number = (number << offset) + n
             return number
         else:
             return serial.value
