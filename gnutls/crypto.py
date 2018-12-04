@@ -152,7 +152,7 @@ class X509Certificate(object):
             gnutls_x509_crt_get_serial(self._c_object, cast(serial, c_void_p), byref(size))
             pad = size.value * sizeof(c_void_p) - len(serial.value)
             format = '@%dL' % size.value
-            numbers = list(struct.unpack(format, serial.value + pad*'\x00'))
+            numbers = list(struct.unpack(format, serial.value + pad * '\x00'))
             if sys.byteorder == 'little':
                 numbers.reverse()
             number = 0

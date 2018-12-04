@@ -202,7 +202,7 @@ def _callable_args(*args, **kwargs):
         for i, arg in enumerate(args):
             validator = Validator.get(arg)
             if validator is None:
-                raise TypeError("unsupported type `%r' at position %d for argument checking decorator" % (arg, i+1))
+                raise TypeError("unsupported type `%r' at position %d for argument checking decorator" % (arg, i + 1))
             validators.append(validator)
     def check_args_decorator(func):
         if sys.version_info > (3, 0):
@@ -214,7 +214,7 @@ def _callable_args(*args, **kwargs):
                 pos = start
                 for validator in validators:
                     if not validator.check(func_args[pos]):
-                        raise TypeError("argument %d must be %s" % (pos+1-start, validator.name))
+                        raise TypeError("argument %d must be %s" % (pos + 1 - start, validator.name))
                     pos += 1
                 return func(*func_args)
         return check_args
