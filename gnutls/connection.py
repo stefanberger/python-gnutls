@@ -290,12 +290,12 @@ class Session(object):
     @property
     def interrupted_while_writing(self):
         """True if an operation was interrupted while writing"""
-        return gnutls_record_get_direction(self._c_object)==1
+        return gnutls_record_get_direction(self._c_object) == 1
 
     @property
     def interrupted_while_reading(self):
         """True if an operation was interrupted while reading"""
-        return gnutls_record_get_direction(self._c_object)==0
+        return gnutls_record_get_direction(self._c_object) == 0
 
     # Session methods
 
